@@ -11,25 +11,34 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", ":9000", "http server listen addr")
-	certFile := flag.String("certFile", "certs/localhost/cert.pem", "cert file")
-	keyFile := flag.String("keyFile", "certs/localhost/key.pem", "key file")
-	streamsDir := flag.String("streamsDir", "", "streams dir")
-	streamsBucket := flag.String("streamsBucket", "", "streams bucket")
+	addr := flag.String("addr", ":8080", "http server listen addr")
+	tlscert := flag.String("tlscert", "", "tls cert file")
+	tlskey := flag.String("tlskey", "", "tls key file")
+	storageDir := flag.String("storageDir", "", "fs dir to save recordings")
+	storageBucket := flag.String("storageBucket", "", "gcs bucket to save recordings")
 	flag.Parse()
+
+	port, ok := os.LookupEnv("PORT")
+	if ok {
+		*addr = ":" + port
+	}
 
 	var recorder stream.Recorder
 	switch {
-	case *streamsDir != "":
-		recorder = stream.FileRecorder(*streamsDir)
-	case *streamsBucket != "":
-		recorder = stream.NewGcsRecorder(*streamsBucket)
+	case *storageDir != "":
+		recorder = stream.FileRecorder(*storageDir)
+	case *storageBucket != "":
+		recorder = stream.NewGcsRecorder(*storageBucket)
 	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	go serveTLS(*addr, *certFile, *keyFile, recorder)
+	if *tlscert == "" || *tlskey == "" {
+		go serve(*addr, recorder)
+	} else {
+		go serveTLS(*addr, *tlscert, *tlskey, recorder)
+	}
 
 	log.Println("server started")
 
