@@ -3,6 +3,7 @@ package bsio
 import (
 	"errors"
 	"io"
+	"log"
 	"time"
 
 	"github.com/at-wat/ebml-go"
@@ -30,6 +31,7 @@ func SplitRecording(src io.Reader, hw io.Writer, bw io.Writer) (err error) {
 	}
 	err = Copy(bw, src)
 	wh.Segment.Info.Duration = float64(time.Since(wh.Segment.Info.DateUTC).Milliseconds())
+	log.Println("wh.Segment.Info.Duration", wh.Segment.Info.Duration)
 	err = errors.Join(err, ebml.Marshal(wh, hw))
 	return
 }
