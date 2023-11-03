@@ -15,9 +15,6 @@ import (
 
 var ctxb = context.Background()
 
-const suHead = "h"
-const suBody = "b"
-
 type GcsRecorder struct {
 	b string
 	c *storage.Client
