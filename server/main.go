@@ -29,6 +29,8 @@ func main() {
 		recorder = stream.FileRecorder(*storageDir)
 	case *storageBucket != "":
 		recorder = stream.NewGcsRecorder(*storageBucket)
+	default:
+		log.Fatal("storageDir or storageBucket must be provided")
 	}
 
 	sig := make(chan os.Signal, 1)
