@@ -22,15 +22,15 @@ func Split(src io.Reader, hw io.Writer, bw io.Writer) (err error) {
 	return
 }
 
-func SplitRecording(src io.Reader, hw io.Writer, bw io.Writer) (err error) {
+func SplitRecording(startTime time.Time, src io.Reader, hw io.Writer, bw io.Writer) (err error) {
 	wh := new(wHeader)
-	wh.Segment.Info.DateUTC = time.Now().UTC()
+	wh.Segment.Info.DateUTC = startTime
 	err = ebml.Unmarshal(src, wh, ebml.WithIgnoreUnknown(true))
 	if err != nil && err != ebml.ErrReadStopped {
 		return
 	}
 	err = Copy(bw, src)
-	wh.Segment.Info.Duration = float64(time.Since(wh.Segment.Info.DateUTC).Milliseconds())
+	wh.Segment.Info.Duration = float64(time.Now().UTC().Sub(startTime).Milliseconds()) //float64(time.Since(wh.Segment.Info.DateUTC).Milliseconds())
 	log.Println("wh.Segment.Info.Duration", wh.Segment.Info.Duration)
 	err = errors.Join(err, ebml.Marshal(wh, hw))
 	return

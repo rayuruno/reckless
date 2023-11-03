@@ -46,7 +46,7 @@ func (s *GcsRecorder) Record(info *StreamInfo, src io.Reader) (err error) {
 	hw := newWriterWithObject(ho)
 	bo := s.c.Bucket(s.b).Object(info.nameSuffix(suBody))
 	bw := newWriterWithObject(bo)
-	err = errors.Join(bsio.SplitRecording(rd, hw, bw), hw.Close(), bw.Close())
+	err = errors.Join(bsio.SplitRecording(info.startTime, rd, hw, bw), hw.Close(), bw.Close())
 	if err != nil {
 		return
 

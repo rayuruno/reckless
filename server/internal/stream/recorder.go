@@ -32,7 +32,7 @@ func (dir FileRecorder) Record(info *StreamInfo, src io.Reader) (err error) {
 	b := mustOpenFile(string(dir), info.nameSuffix("-b"), os.O_CREATE|os.O_RDWR)
 	defer b.Close()
 
-	err = bsio.SplitRecording(src, h, b)
+	err = bsio.SplitRecording(info.startTime, src, h, b)
 	if err != nil {
 		return
 	}
