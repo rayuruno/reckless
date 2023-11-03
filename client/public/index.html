@@ -6,6 +6,11 @@
 			body {
 				margin: 0;
 			}
+			.icon-button {
+				all: unset;
+				cursor: pointer;
+				padding: .5rem;
+			}
 			.app-view {
 				min-height: 100vh;
 				font-family: sans-serif;
@@ -49,11 +54,6 @@
 		    justify-content: flex-start;
 		    gap: .5rem;
 			}
-			.mini-recorder > button {
-				all: unset;
-				cursor: pointer;
-				padding: .5rem;
-			}
 			.warning {
 				display: flex;
 		    align-items: center;
@@ -67,6 +67,10 @@
 				margin: 4rem auto 2rem;
 		    max-width: 100%;
 		    width: 24rem;
+			}
+			.recording-list-item > div {
+				display: flex;
+				align-items: center;
 			}
 		</style>
 	</head>

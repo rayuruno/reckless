@@ -16,9 +16,12 @@ import {
   ref,
   listAll,
   getDownloadURL,
+  deleteObject,
 } from "https://www.gstatic.com/firebasejs/10.5.2/firebase-storage.js";
 
-const serverUrl = "https://localhost:9000";
+const serverUrl = window.location.hostname.startsWith("localhost")
+  ? "https://localhost:8080"
+  : "https://reckless-vmug6tr6ga-ew.a.run.app";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD_-CtDTFjODnrKYTxsz-ThY9vbh5X9-bo",
@@ -34,6 +37,7 @@ const app = initializeApp(firebaseConfig);
 const provider = new GoogleAuthProvider();
 const auth = getAuth();
 const storage = getStorage();
+const updates = new EventTarget();
 
 const warningBlock = (message) => html`<div class="warning">
   ${warningIcon} <span>${message}</span>
@@ -97,7 +101,8 @@ const miniRecorder = ({ media }) => {
   const $icon = document.createElement("span");
 
   const update = (event) => {
-    console.log(event);
+    console.debug("[miniRecorder.update]", event);
+
     let ctrl = event.target.constructor.name
       .toLowerCase()
       .replace("controller", "");
@@ -107,10 +112,13 @@ const miniRecorder = ({ media }) => {
 
     render(mediaIcons[state] || mediaIcons.inactive, $icon);
     render(miniRecorderStatus({ ctrl, state, warning, icon }), $status);
+
+    updates.dispatchEvent(new CustomEvent("update", { detail: { event } }));
   };
 
   upl.addEventListener("request", update);
   upl.addEventListener("response", update);
+
   upl.addEventListener("error", update);
 
   rec.addEventListener("active", (e) => {
@@ -136,6 +144,7 @@ const miniRecorder = ({ media }) => {
   return html`
     <div class="mini-recorder">
       <button
+        class="icon-button"
         @click=${() => {
           if (cap.stream) {
             cap.stop();
@@ -148,6 +157,84 @@ const miniRecorder = ({ media }) => {
       </button>
       ${$status}
     </div>
+  `;
+};
+
+const fetchAndRenderRecordings = (listRef, $list) =>
+  listAll(listRef)
+    .then((res) => {
+      render(recordingsList(res), $list);
+      return $list;
+    })
+    .catch((error) => {
+      render(warningBlock(error.message), $list);
+      return $list;
+    });
+
+const recordingsList = (res) => {
+  const prefixes = res.prefixes.map((f) => {
+    const listRef = ref(storage, f);
+    const $list = fetchAndRenderRecordings(
+      listRef,
+      document.createElement("div")
+    );
+
+    return html`<li class="recording-list-item">
+      <span>${f.name}</span>
+      ${until($list, html`<span>Loading...</span>`)}
+    </li>`;
+  });
+
+  const items = Promise.all(
+    res.items.map(async (i) => {
+      const iRef = ref(storage, i.fullPath);
+      try {
+        const href = await getDownloadURL(iRef);
+        return html` <li class="recording-list-item">
+          <div>
+            <a href="${href}" target="_blank">${i.name}</a>
+            <button
+              class="icon-button"
+              @click=${(e) =>
+                deleteObject(iRef)
+                  .then(() => e.target.closest(".recording-list-item").remove())
+                  .catch(console.error)}
+            >
+              ${materialIcon("delete")}
+            </button>
+          </div>
+        </li>`;
+      } catch (error) {
+        return html`
+          <li><div>${i.name} ${warningBlock(error.message)}</div></li>
+        `;
+      }
+    })
+  );
+
+  return html`
+    <ul class="recording-list">
+      ${prefixes} ${until(items, html`<span>...</span>`)}
+    </ul>
+  `;
+};
+
+const recordingsView = () => {
+  const listRef = ref(storage, auth.currentUser.uid);
+  const $list = document.createElement("div");
+  const recordings = fetchAndRenderRecordings(listRef, $list);
+
+  updates.addEventListener("update", ({ detail: { event } }) => {
+    if (event.type === "response") {
+      fetchAndRenderRecordings(listRef, $list);
+    }
+  });
+
+  return html`
+    <section>
+      <h2>Recordings</h2>
+      ${until(recordings, html`<span>Loading...</span>`)}
+    </section>
   `;
 };
 
@@ -168,68 +255,6 @@ const userView = () => {
       </aside>
       <article class="content">${recordingsView()}</article>
     </div>
-  `;
-};
-const recordingsList = (res) => {
-  const prefixes = res.prefixes.map((f) => {
-    const $list = document.createElement("div");
-    // Create a reference under which you want to list
-    const listRef = ref(storage, f);
-    // Find all the prefixes and items.
-    listAll(listRef)
-      .then((res) => {
-        render(recordingsList(res), $list);
-      })
-      .catch((error) => {
-        render(warningBlock(error.message), $list);
-      });
-
-    return html`<li>
-      <span>${f.name}</span>
-      ${$list}
-    </li>`;
-  });
-
-  const items = Promise.all(
-    res.items.map(async (i) => {
-      try {
-        console.log(i);
-        const href = await getDownloadURL(ref(storage, i.fullPath));
-        console.log(href);
-        return html` <li><a href="${href}">${i.name}</a></li> `;
-      } catch (error) {
-        return html` <li>${i.name} ${warningBlock(error.message)}</li> `;
-      }
-    })
-  );
-
-  return html`
-    <ul>
-      ${prefixes} ${until(items, html`<span>...</span>`)}
-    </ul>
-  `;
-};
-
-const recordingsView = () => {
-  const $list = document.createElement("div");
-
-  // Create a reference under which you want to list
-  const listRef = ref(storage, auth.currentUser.uid);
-  // Find all the prefixes and items.
-  listAll(listRef)
-    .then((res) => {
-      render(recordingsList(res), $list);
-    })
-    .catch((error) => {
-      render(warningBlock(error.message), $list);
-    });
-
-  // return html`${until(list, html`<span>Loading...</span>`)}`;
-  return html`
-    <section>
-      <h2>Recordings</h2>
-      ${$list}
-    </section>
   `;
 };
 
